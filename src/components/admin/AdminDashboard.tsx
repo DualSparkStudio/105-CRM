@@ -8,6 +8,7 @@ import {
     Notifications,
     People,
     Settings,
+    QuestionAnswer,
 } from '@mui/icons-material';
 import {
     AppBar,
@@ -31,6 +32,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AdminOverview from './AdminOverview';
 import InterviewAnalytics from './InterviewAnalytics';
 import QuestionnaireManagement from './QuestionnaireManagement';
+import ResponsesView from './ResponsesView';
 import ThresholdSettings from './ThresholdSettings';
 import UserManagement from './UserManagement';
 
@@ -62,6 +64,7 @@ const AdminDashboard: React.FC = () => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/admin' },
     { text: 'User Management', icon: <People />, path: '/admin/users' },
     { text: 'Questionnaires', icon: <Assignment />, path: '/admin/questionnaires' },
+    { text: 'Responses', icon: <QuestionAnswer />, path: '/admin/responses' },
     { text: 'Analytics', icon: <Assessment />, path: '/admin/analytics' },
     { text: 'Threshold Settings', icon: <Settings />, path: '/admin/threshold' },
   ];
@@ -175,6 +178,7 @@ const AdminDashboard: React.FC = () => {
           <Route path="/" element={<AdminOverview />} />
           <Route path="/users" element={<UserManagement />} />
           <Route path="/questionnaires" element={<QuestionnaireManagement />} />
+          <Route path="/responses" element={<ResponsesView />} />
           <Route path="/analytics" element={<InterviewAnalytics />} />
           <Route path="/threshold" element={<ThresholdSettings />} />
         </Routes>
