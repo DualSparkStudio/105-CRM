@@ -28,6 +28,10 @@ import {
   AccordionDetails,
   Divider,
   CircularProgress,
+  Alert,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import {
   Search,
@@ -39,11 +43,13 @@ import {
   Edit,
   Delete,
   Add,
+  QuestionAnswer,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { InterviewResponse, Questionnaire, User } from '../../types';
 import { responseService, questionnaireService, userService } from '../../services/api';
 import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 interface ResponsesViewProps {}
 
@@ -62,31 +68,114 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingResponse, setEditingResponse] = useState<InterviewResponse | null>(null);
+  const [debugInfo, setDebugInfo] = useState<{
+    connectionStatus: string;
+    envVars: { url: boolean; key: boolean };
+    dataCounts: { responses: number; questionnaires: number; users: number };
+    lastError?: string;
+  }>({
+    connectionStatus: 'Checking...',
+    envVars: { url: false, key: false },
+    dataCounts: { responses: 0, questionnaires: 0, users: 0 }
+  });
 
   // Load data from Supabase
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        console.log('Loading data from Supabase...');
+        console.log('=== DEBUGGING SUPABASE CONNECTION ===');
         
-        const [responsesData, questionnairesData, usersData] = await Promise.all([
-          responseService.getResponses(),
-          questionnaireService.getQuestionnaires(),
-          userService.getUsers(),
-        ]);
+        // Check environment variables
+        console.log('Environment variables:');
+        console.log('REACT_APP_SUPABASE_URL:', process.env.REACT_APP_SUPABASE_URL ? 'SET' : 'NOT SET');
+        console.log('REACT_APP_SUPABASE_ANON_KEY:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
         
-        console.log('Data loaded:', {
-          responses: responsesData.length,
-          questionnaires: questionnairesData.length,
-          users: usersData.length
-        });
+        setDebugInfo(prev => ({
+          ...prev,
+          envVars: {
+            url: !!process.env.REACT_APP_SUPABASE_URL,
+            key: !!process.env.REACT_APP_SUPABASE_ANON_KEY
+          }
+        }));
+        
+        // Test Supabase connection
+        console.log('Testing Supabase connection...');
+        const { data: testData, error: testError } = await supabase
+          .from('users')
+          .select('count')
+          .limit(1);
+        
+        if (testError) {
+          console.error('Supabase connection test failed:', testError);
+          setDebugInfo(prev => ({
+            ...prev,
+            connectionStatus: `Failed: ${testError.message}`,
+            lastError: testError.message
+          }));
+          toast.error(`Connection failed: ${testError.message}`);
+          return;
+        }
+        
+        console.log('Supabase connection successful!');
+        console.log('Test query result:', testData);
+        setDebugInfo(prev => ({
+          ...prev,
+          connectionStatus: 'Connected'
+        }));
+        
+        // Load actual data
+        console.log('Loading responses...');
+        const responsesData = await responseService.getResponses();
+        console.log('Responses loaded:', responsesData.length, responsesData);
+        
+        console.log('Loading questionnaires...');
+        const questionnairesData = await questionnaireService.getQuestionnaires();
+        console.log('Questionnaires loaded:', questionnairesData.length, questionnairesData);
+        
+        console.log('Loading users...');
+        const usersData = await userService.getUsers();
+        console.log('Users loaded:', usersData.length, usersData);
+        
+        console.log('=== DATA SUMMARY ===');
+        console.log('Total responses:', responsesData.length);
+        console.log('Total questionnaires:', questionnairesData.length);
+        console.log('Total users:', usersData.length);
         
         setResponses(responsesData);
         setQuestionnaires(questionnairesData);
         setUsers(usersData);
+        
+        setDebugInfo(prev => ({
+          ...prev,
+          dataCounts: {
+            responses: responsesData.length,
+            questionnaires: questionnairesData.length,
+            users: usersData.length
+          }
+        }));
+        
+        if (responsesData.length === 0) {
+          console.log('⚠️ No responses found - this might indicate:');
+          console.log('1. Database is empty (run sample-data.sql)');
+          console.log('2. RLS policies are blocking access');
+          console.log('3. User is not authenticated');
+          console.log('4. Wrong database schema');
+        }
+        
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('=== ERROR DETAILS ===');
+        console.error('Error type:', error.constructor.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Full error object:', error);
+        
+        setDebugInfo(prev => ({
+          ...prev,
+          connectionStatus: 'Error',
+          lastError: error.message
+        }));
+        
         toast.error(`Failed to load data: ${error.message}`);
       } finally {
         setLoading(false);
@@ -256,7 +345,7 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
-          <Assessment sx={{ mr: 2 }} />
+          <QuestionAnswerIcon sx={{ mr: 2 }} />
           Questionnaire Responses
         </Typography>
         <Box>
@@ -281,6 +370,50 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
           </Button>
         </Box>
       </Box>
+
+      {/* Debug Panel */}
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <Typography variant="h6" gutterBottom>🔧 Debug Information</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 2 }}>
+          <Box>
+            <Typography variant="subtitle2">Connection Status:</Typography>
+            <Chip 
+              label={debugInfo.connectionStatus} 
+              color={debugInfo.connectionStatus === 'Connected' ? 'success' : 'error'}
+              size="small"
+            />
+          </Box>
+          <Box>
+            <Typography variant="subtitle2">Environment Variables:</Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip 
+                label={`URL: ${debugInfo.envVars.url ? '✅' : '❌'}`} 
+                color={debugInfo.envVars.url ? 'success' : 'error'}
+                size="small"
+              />
+              <Chip 
+                label={`KEY: ${debugInfo.envVars.key ? '✅' : '❌'}`} 
+                color={debugInfo.envVars.key ? 'success' : 'error'}
+                size="small"
+              />
+            </Box>
+          </Box>
+          <Box>
+            <Typography variant="subtitle2">Data Counts:</Typography>
+            <Typography variant="body2">
+              Responses: {debugInfo.dataCounts.responses} | 
+              Questionnaires: {debugInfo.dataCounts.questionnaires} | 
+              Users: {debugInfo.dataCounts.users}
+            </Typography>
+          </Box>
+        </Box>
+        {debugInfo.lastError && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="subtitle2" color="error">Last Error:</Typography>
+            <Typography variant="body2" color="error">{debugInfo.lastError}</Typography>
+          </Box>
+        )}
+      </Alert>
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
