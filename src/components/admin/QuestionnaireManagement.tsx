@@ -295,6 +295,7 @@ const QuestionnaireManagement: React.FC = () => {
           </TableContainer>
         </CardContent>
       </Card>
+      )}
 
       {/* Create/Edit Questionnaire Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
