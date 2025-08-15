@@ -27,7 +27,7 @@ import {
     Typography,
 } from '@mui/material';
 import React from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminOverview from './AdminOverview';
 import InterviewAnalytics from './InterviewAnalytics';
@@ -40,6 +40,7 @@ const drawerWidth = 240;
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -82,12 +83,20 @@ const AdminDashboard: React.FC = () => {
           <ListItem
             button
             key={item.text}
-            component="a"
-            href={item.path}
+            component={Link}
+            to={item.path}
+            selected={location.pathname === item.path}
             sx={{
               '&:hover': {
                 backgroundColor: 'primary.light',
                 color: 'white',
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'primary.main',
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                },
               },
             }}
           >
