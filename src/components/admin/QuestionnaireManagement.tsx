@@ -122,6 +122,7 @@ const QuestionnaireManagement: React.FC = () => {
           await questionnaireService.createQuestionnaire({
             title: values.title,
             description: values.description,
+            questions: questions.map((q, index) => ({ ...q, id: (index + 1).toString() })),
             assignedTo: selectedUsers,
           });
           toast.success('Questionnaire created successfully!');
