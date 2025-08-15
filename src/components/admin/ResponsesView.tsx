@@ -165,18 +165,20 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
         
       } catch (error) {
         console.error('=== ERROR DETAILS ===');
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
+        console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+        console.error('Error message:', error instanceof Error ? error.message : String(error));
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         console.error('Full error object:', error);
+        
+        const errorMessage = error instanceof Error ? error.message : String(error);
         
         setDebugInfo(prev => ({
           ...prev,
           connectionStatus: 'Error',
-          lastError: error.message
+          lastError: errorMessage
         }));
         
-        toast.error(`Failed to load data: ${error.message}`);
+        toast.error(`Failed to load data: ${errorMessage}`);
       } finally {
         setLoading(false);
       }
