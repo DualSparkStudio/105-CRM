@@ -17,6 +17,7 @@ import {
     CardContent,
     Checkbox,
     Chip,
+    CircularProgress,
     Dialog,
     DialogActions,
     DialogContent,
@@ -39,10 +40,11 @@ import {
     Typography
 } from '@mui/material';
 import { useFormik } from 'formik';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import * as yup from 'yup';
 import { Question, Questionnaire, User } from '../../types';
+import { questionnaireService, userService } from '../../services/api';
 
 const validationSchema = yup.object({
   title: yup.string().required('Title is required'),
@@ -65,67 +67,39 @@ const QuestionnaireManagement: React.FC = () => {
   const [editingQuestionnaire, setEditingQuestionnaire] = useState<Questionnaire | null>(null);
   const [questions, setQuestions] = useState<Omit<Question, 'id'>[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with actual API calls
-  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([
-    {
-      id: '1',
-      title: 'Customer Satisfaction Survey',
-      description: 'Survey to measure customer satisfaction with our services',
-      questions: [
-        {
-          id: '1',
-          text: 'How satisfied are you with our service?',
-          type: 'radio',
-          required: true,
-          options: ['Very Satisfied', 'Satisfied', 'Neutral', 'Dissatisfied', 'Very Dissatisfied'],
-          order: 1,
-        },
-        {
-          id: '2',
-          text: 'What aspects of our service could be improved?',
-          type: 'text',
-          required: false,
-          order: 2,
-        },
-      ],
-      createdAt: '2024-01-01T00:00:00Z',
-      isActive: true,
-      assignedTo: ['1', '2'],
-    },
-    {
-      id: '2',
-      title: 'Product Feedback Form',
-      description: 'Collecting feedback on our latest product features',
-      questions: [
-        {
-          id: '3',
-          text: 'Which features do you use most frequently?',
-          type: 'checkbox',
-          required: true,
-          options: ['Feature A', 'Feature B', 'Feature C', 'Feature D'],
-          order: 1,
-        },
-        {
-          id: '4',
-          text: 'Rate the overall product experience',
-          type: 'select',
-          required: true,
-          options: ['Excellent', 'Good', 'Average', 'Poor'],
-          order: 2,
-        },
-      ],
-      createdAt: '2024-01-05T00:00:00Z',
-      isActive: false,
-      assignedTo: ['1', '3'],
-    },
-  ]);
+  // Real data from API
+  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
 
-  const mockUsers: User[] = [
-    { id: '1', username: 'john_doe', email: 'john@example.com', role: 'user', createdAt: '', isActive: true, interviewCount: 0, completedForms: 0, incompleteForms: 0 },
-    { id: '2', username: 'jane_smith', email: 'jane@example.com', role: 'user', createdAt: '', isActive: true, interviewCount: 0, completedForms: 0, incompleteForms: 0 },
-    { id: '3', username: 'mike_johnson', email: 'mike@example.com', role: 'user', createdAt: '', isActive: true, interviewCount: 0, completedForms: 0, incompleteForms: 0 },
-  ];
+  // Load data from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        console.log('🔍 Loading questionnaires and users...');
+        
+        const [questionnairesData, usersData] = await Promise.all([
+          questionnaireService.getQuestionnaires(),
+          userService.getUsers(),
+        ]);
+        
+        console.log('✅ Questionnaires loaded:', questionnairesData.length);
+        console.log('✅ Users loaded:', usersData.length);
+        
+        setQuestionnaires(questionnairesData);
+        setUsers(usersData);
+      } catch (error) {
+        console.error('❌ Error loading data:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const formik = useFormik({
     initialValues: {
@@ -133,31 +107,34 @@ const QuestionnaireManagement: React.FC = () => {
       description: '',
     },
     validationSchema: validationSchema,
-    onSubmit: (values) => {
-      if (editingQuestionnaire) {
-        // Update existing questionnaire
-        const updatedQuestions = questions.map((q, index) => ({ ...q, id: (index + 1).toString() }));
-        setQuestionnaires(questionnaires.map(q => 
-          q.id === editingQuestionnaire.id 
-            ? { ...q, title: values.title, description: values.description, questions: updatedQuestions, assignedTo: selectedUsers }
-            : q
-        ));
-        toast.success('Questionnaire updated successfully!');
-      } else {
-        // Create new questionnaire
-        const newQuestionnaire: Questionnaire = {
-          id: Date.now().toString(),
-          title: values.title,
-          description: values.description,
-          questions: questions.map((q, index) => ({ ...q, id: (index + 1).toString() })),
-          createdAt: new Date().toISOString(),
-          isActive: true,
-          assignedTo: selectedUsers,
-        };
-        setQuestionnaires([...questionnaires, newQuestionnaire]);
-        toast.success('Questionnaire created successfully!');
+    onSubmit: async (values) => {
+      try {
+        if (editingQuestionnaire) {
+          // Update existing questionnaire
+          await questionnaireService.updateQuestionnaire(editingQuestionnaire.id, {
+            title: values.title,
+            description: values.description,
+            assignedTo: selectedUsers,
+          });
+          toast.success('Questionnaire updated successfully!');
+        } else {
+          // Create new questionnaire
+          await questionnaireService.createQuestionnaire({
+            title: values.title,
+            description: values.description,
+            assignedTo: selectedUsers,
+          });
+          toast.success('Questionnaire created successfully!');
+        }
+        
+        // Reload data
+        const updatedQuestionnaires = await questionnaireService.getQuestionnaires();
+        setQuestionnaires(updatedQuestionnaires);
+        handleCloseDialog();
+      } catch (error) {
+        console.error('❌ Error saving questionnaire:', error);
+        toast.error('Failed to save questionnaire');
       }
-      handleCloseDialog();
     },
   });
 
@@ -242,23 +219,35 @@ const QuestionnaireManagement: React.FC = () => {
         </Button>
       </Box>
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Questions</TableCell>
-                  <TableCell>Assigned Users</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {questionnaires.map((questionnaire) => (
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Card>
+          <CardContent>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Title</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Questions</TableCell>
+                    <TableCell>Assigned Users</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {questionnaires.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        No questionnaires found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    questionnaires.map((questionnaire) => (
                   <TableRow key={questionnaire.id}>
                     <TableCell component="th" scope="row">
                       {questionnaire.title}
@@ -422,7 +411,7 @@ const QuestionnaireManagement: React.FC = () => {
             </Typography>
             
             <FormGroup>
-              {mockUsers.map(user => (
+              {users.map(user => (
                 <FormControlLabel
                   key={user.id}
                   control={
