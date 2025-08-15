@@ -229,16 +229,22 @@ RETURNS TRIGGER AS $$
 DECLARE
     total_questions INTEGER;
     answered_questions INTEGER;
+    response_questionnaire_id UUID;
 BEGIN
+    -- Get the questionnaire_id for the response
+    SELECT questionnaire_id INTO response_questionnaire_id
+    FROM interview_responses
+    WHERE id = NEW.response_id;
+    
     -- Get total questions for the questionnaire
     SELECT COUNT(*) INTO total_questions
     FROM questions
-    WHERE questionnaire_id = NEW.questionnaire_id;
+    WHERE questionnaire_id = response_questionnaire_id;
     
-    -- Get answered questions
+    -- Get answered questions for this response
     SELECT COUNT(*) INTO answered_questions
     FROM response_answers
-    WHERE response_id = NEW.id;
+    WHERE response_id = NEW.response_id;
     
     -- Update completion percentage
     UPDATE interview_responses
@@ -246,7 +252,7 @@ BEGIN
         WHEN total_questions = 0 THEN 0
         ELSE (answered_questions * 100) / total_questions
     END
-    WHERE id = NEW.id;
+    WHERE id = NEW.response_id;
     
     RETURN NEW;
 END;

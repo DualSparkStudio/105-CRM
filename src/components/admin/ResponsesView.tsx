@@ -36,6 +36,9 @@ import {
   Download,
   Refresh,
   Assessment,
+  Edit,
+  Delete,
+  Add,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { InterviewResponse, Questionnaire, User } from '../../types';
@@ -56,6 +59,9 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
   const [questionnaireFilter, setQuestionnaireFilter] = useState<string>('all');
   const [selectedResponse, setSelectedResponse] = useState<InterviewResponse | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingResponse, setEditingResponse] = useState<InterviewResponse | null>(null);
 
   // Load data from Supabase
   useEffect(() => {
@@ -108,6 +114,78 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
   const handleViewDetails = (response: InterviewResponse) => {
     setSelectedResponse(response);
     setDetailDialogOpen(true);
+  };
+
+  const handleEditResponse = (response: InterviewResponse) => {
+    setEditingResponse(response);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteResponse = (response: InterviewResponse) => {
+    setSelectedResponse(response);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingResponse) return;
+    
+    try {
+      await responseService.updateResponse(editingResponse.id, editingResponse);
+      toast.success('Response updated successfully');
+      setEditDialogOpen(false);
+      setEditingResponse(null);
+      // Reload data
+      const [responsesData, questionnairesData, usersData] = await Promise.all([
+        responseService.getResponses(),
+        questionnaireService.getQuestionnaires(),
+        userService.getUsers(),
+      ]);
+      setResponses(responsesData);
+      setQuestionnaires(questionnairesData);
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Error updating response:', error);
+      toast.error('Failed to update response');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedResponse) return;
+    
+    try {
+      await responseService.deleteResponse(selectedResponse.id);
+      toast.success('Response deleted successfully');
+      setDeleteDialogOpen(false);
+      setSelectedResponse(null);
+      // Reload data
+      const [responsesData, questionnairesData, usersData] = await Promise.all([
+        responseService.getResponses(),
+        questionnaireService.getQuestionnaires(),
+        userService.getUsers(),
+      ]);
+      setResponses(responsesData);
+      setQuestionnaires(questionnairesData);
+      setUsers(usersData);
+    } catch (error) {
+      console.error('Error deleting response:', error);
+      toast.error('Failed to delete response');
+    }
+  };
+
+  const handleUpdateAnswer = (questionId: string, answer: string) => {
+    if (!editingResponse) return;
+    
+    const updatedResponses = editingResponse.responses.map(response => 
+      response.questionId === questionId 
+        ? { ...response, answer }
+        : response
+    );
+    
+    setEditingResponse({
+      ...editingResponse,
+      responses: updatedResponses,
+      completionPercentage: Math.round((updatedResponses.length / 10) * 100) // Simplified calculation
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -316,8 +394,25 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
                         size="small"
                         onClick={() => handleViewDetails(response)}
                         color="primary"
+                        title="View Details"
                       >
                         <Visibility />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditResponse(response)}
+                        color="secondary"
+                        title="Edit Response"
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteResponse(response)}
+                        color="error"
+                        title="Delete Response"
+                      >
+                        <Delete />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -413,6 +508,117 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDetailDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Response Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Edit Response
+          {editingResponse && (
+            <Typography variant="subtitle2" color="text.secondary">
+              {getUserName(editingResponse.userId)} - {getQuestionnaireTitle(editingResponse.questionnaireId)}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          {editingResponse && (
+            <Box>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">User</Typography>
+                  <Typography variant="body1">{getUserName(editingResponse.userId)}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Questionnaire</Typography>
+                  <Typography variant="body1">{getQuestionnaireTitle(editingResponse.questionnaireId)}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={editingResponse.status}
+                      label="Status"
+                      onChange={(e) => setEditingResponse({
+                        ...editingResponse,
+                        status: e.target.value as 'completed' | 'incomplete' | 'draft'
+                      })}
+                    >
+                      <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="incomplete">Incomplete</MenuItem>
+                      <MenuItem value="draft">Draft</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Completion</Typography>
+                  <Typography variant="body1">{editingResponse.completionPercentage}%</Typography>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="h6" sx={{ mb: 2 }}>Edit Answers</Typography>
+              {editingResponse.responses.map((response, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Question {index + 1}
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    value={response.answer}
+                    onChange={(e) => handleUpdateAnswer(response.questionId, e.target.value)}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveEdit} variant="contained" color="primary">
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this response?
+          </Typography>
+          {selectedResponse && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              User: {getUserName(selectedResponse.userId)}<br />
+              Questionnaire: {getQuestionnaireTitle(selectedResponse.questionnaireId)}<br />
+              Status: {selectedResponse.status}
+            </Typography>
+          )}
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

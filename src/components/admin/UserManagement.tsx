@@ -31,10 +31,11 @@ import {
     Typography
 } from '@mui/material';
 import { useFormik } from 'formik';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import * as yup from 'yup';
 import { User } from '../../types';
+import { userService } from '../../services/api';
 
 const validationSchema = yup.object({
   username: yup.string().required('Username is required').min(3, 'Username must be at least 3 characters'),
@@ -47,43 +48,28 @@ const UserManagement: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with actual API calls
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: '1',
-      username: 'john_doe',
-      email: 'john@example.com',
-      role: 'user',
-      createdAt: '2024-01-01T00:00:00Z',
-      isActive: true,
-      interviewCount: 15,
-      completedForms: 14,
-      incompleteForms: 1,
-    },
-    {
-      id: '2',
-      username: 'jane_smith',
-      email: 'jane@example.com',
-      role: 'user',
-      createdAt: '2024-01-02T00:00:00Z',
-      isActive: true,
-      interviewCount: 8,
-      completedForms: 6,
-      incompleteForms: 2,
-    },
-    {
-      id: '3',
-      username: 'mike_johnson',
-      email: 'mike@example.com',
-      role: 'user',
-      createdAt: '2024-01-03T00:00:00Z',
-      isActive: false,
-      interviewCount: 12,
-      completedForms: 12,
-      incompleteForms: 0,
-    },
-  ]);
+  // Real data from Supabase
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Load users from database
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true);
+        const usersData = await userService.getUsers();
+        setUsers(usersData);
+      } catch (error) {
+        console.error('Error loading users:', error);
+        toast.error('Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   const formik = useFormik({
     initialValues: {
@@ -93,32 +79,36 @@ const UserManagement: React.FC = () => {
       role: 'user' as 'admin' | 'user',
     },
     validationSchema: validationSchema,
-    onSubmit: (values) => {
-      if (editingUser) {
-        // Update existing user
-        setUsers(users.map(user => 
-          user.id === editingUser.id 
-            ? { ...user, username: values.username, email: values.email, role: values.role }
-            : user
-        ));
-        toast.success('User updated successfully!');
-      } else {
-        // Create new user
-        const newUser: User = {
-          id: Date.now().toString(),
-          username: values.username,
-          email: values.email,
-          role: values.role,
-          createdAt: new Date().toISOString(),
-          isActive: true,
-          interviewCount: 0,
-          completedForms: 0,
-          incompleteForms: 0,
-        };
-        setUsers([...users, newUser]);
-        toast.success('User created successfully!');
+    onSubmit: async (values) => {
+      try {
+        if (editingUser) {
+          // Update existing user
+          await userService.updateUser(editingUser.id, {
+            username: values.username,
+            email: values.email,
+            role: values.role,
+          });
+          toast.success('User updated successfully!');
+        } else {
+          // Create new user
+          await userService.createUser({
+            username: values.username,
+            email: values.email,
+            password: values.password,
+            role: values.role,
+          });
+          toast.success('User created successfully!');
+        }
+        
+        // Reload users
+        const usersData = await userService.getUsers();
+        setUsers(usersData);
+        
+        handleCloseDialog();
+      } catch (error) {
+        console.error('Error saving user:', error);
+        toast.error('Failed to save user');
       }
-      handleCloseDialog();
     },
   });
 
@@ -145,17 +135,32 @@ const UserManagement: React.FC = () => {
     formik.resetForm();
   };
 
-  const handleToggleUserStatus = (userId: string) => {
-    setUsers(users.map(user =>
-      user.id === userId ? { ...user, isActive: !user.isActive } : user
-    ));
-    toast.success('User status updated!');
+  const handleToggleUserStatus = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        await userService.updateUser(userId, { isActive: !user.isActive });
+        const usersData = await userService.getUsers();
+        setUsers(usersData);
+        toast.success('User status updated!');
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      toast.error('Failed to update user status');
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      toast.success('User deleted successfully!');
+      try {
+        await userService.deleteUser(userId);
+        const usersData = await userService.getUsers();
+        setUsers(usersData);
+        toast.success('User deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        toast.error('Failed to delete user');
+      }
     }
   };
 
@@ -163,6 +168,14 @@ const UserManagement: React.FC = () => {
     if (user.interviewCount === 0) return 0;
     return Math.round((user.completedForms / user.interviewCount) * 100);
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography>Loading users...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
