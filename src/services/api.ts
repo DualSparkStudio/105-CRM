@@ -4,12 +4,18 @@ import { User, Questionnaire, Question, InterviewResponse, CreateUserData, Creat
 // User Services
 export const userService = {
   async getUsers(): Promise<User[]> {
+    console.log('🔍 API: Fetching users...');
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    console.log('🔍 API: Users response:', { data, error });
+    if (error) {
+      console.error('❌ API: Users error:', error);
+      throw error;
+    }
+    console.log('✅ API: Users loaded:', data?.length || 0);
     return data || [];
   },
 
@@ -68,12 +74,18 @@ export const userService = {
 // Questionnaire Services
 export const questionnaireService = {
   async getQuestionnaires(): Promise<Questionnaire[]> {
+    console.log('🔍 API: Fetching questionnaires...');
     const { data, error } = await supabase
       .from('questionnaires')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    console.log('🔍 API: Questionnaires response:', { data, error });
+    if (error) {
+      console.error('❌ API: Questionnaires error:', error);
+      throw error;
+    }
+    console.log('✅ API: Questionnaires loaded:', data?.length || 0);
     return data || [];
   },
 
@@ -175,6 +187,7 @@ export const questionService = {
 // Interview Response Services
 export const responseService = {
   async getResponses(): Promise<InterviewResponse[]> {
+    console.log('🔍 API: Fetching responses...');
     const { data, error } = await supabase
       .from('interview_responses')
       .select(`
@@ -186,7 +199,12 @@ export const responseService = {
       `)
       .order('last_modified', { ascending: false });
 
-    if (error) throw error;
+    console.log('🔍 API: Responses response:', { data, error });
+    if (error) {
+      console.error('❌ API: Responses error:', error);
+      throw error;
+    }
+    console.log('✅ API: Responses loaded:', data?.length || 0);
     return data || [];
   },
 
