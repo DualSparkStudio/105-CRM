@@ -68,18 +68,26 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
     const loadData = async () => {
       try {
         setLoading(true);
+        console.log('Loading data from Supabase...');
+        
         const [responsesData, questionnairesData, usersData] = await Promise.all([
           responseService.getResponses(),
           questionnaireService.getQuestionnaires(),
           userService.getUsers(),
         ]);
         
+        console.log('Data loaded:', {
+          responses: responsesData.length,
+          questionnaires: questionnairesData.length,
+          users: usersData.length
+        });
+        
         setResponses(responsesData);
         setQuestionnaires(questionnairesData);
         setUsers(usersData);
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('Failed to load data');
+        toast.error(`Failed to load data: ${error.message}`);
       } finally {
         setLoading(false);
       }
