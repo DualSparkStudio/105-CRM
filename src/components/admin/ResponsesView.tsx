@@ -41,6 +41,7 @@ import {
   Assessment,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import { InterviewResponse, Questionnaire, User } from '../../types';
 
 // Mock data - replace with actual API calls
 const mockResponses: InterviewResponse[] = [
