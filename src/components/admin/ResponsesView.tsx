@@ -345,7 +345,7 @@ const ResponsesView: React.FC<ResponsesViewProps> = () => {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
-          <QuestionAnswerIcon sx={{ mr: 2 }} />
+          <QuestionAnswer sx={{ mr: 2 }} />
           Questionnaire Responses
         </Typography>
         <Box>
