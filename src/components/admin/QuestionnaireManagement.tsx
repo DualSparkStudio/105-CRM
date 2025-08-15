@@ -248,53 +248,54 @@ const QuestionnaireManagement: React.FC = () => {
                     </TableRow>
                   ) : (
                     questionnaires.map((questionnaire) => (
-                  <TableRow key={questionnaire.id}>
-                    <TableCell component="th" scope="row">
-                      {questionnaire.title}
-                    </TableCell>
-                    <TableCell>{questionnaire.description}</TableCell>
-                    <TableCell>{questionnaire.questions.length} questions</TableCell>
-                    <TableCell>{questionnaire.assignedTo.length} users</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={questionnaire.isActive ? 'Active' : 'Inactive'}
-                        color={questionnaire.isActive ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {new Date(questionnaire.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(questionnaire)}
-                        color="primary"
-                      >
-                        <Edit />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => toggleQuestionnaireStatus(questionnaire.id)}
-                        color={questionnaire.isActive ? 'warning' : 'success'}
-                      >
-                        {questionnaire.isActive ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => deleteQuestionnaire(questionnaire.id)}
-                        color="error"
-                      >
-                        <Delete />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                      <TableRow key={questionnaire.id}>
+                        <TableCell component="th" scope="row">
+                          {questionnaire.title}
+                        </TableCell>
+                        <TableCell>{questionnaire.description}</TableCell>
+                        <TableCell>{questionnaire.questions.length} questions</TableCell>
+                        <TableCell>{questionnaire.assignedTo.length} users</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={questionnaire.isActive ? 'Active' : 'Inactive'}
+                            color={questionnaire.isActive ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {new Date(questionnaire.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(questionnaire)}
+                            color="primary"
+                          >
+                            <Edit />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => toggleQuestionnaireStatus(questionnaire.id)}
+                            color={questionnaire.isActive ? 'warning' : 'success'}
+                          >
+                            {questionnaire.isActive ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => deleteQuestionnaire(questionnaire.id)}
+                            color="error"
+                          >
+                            <Delete />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
       )}
 
       {/* Create/Edit Questionnaire Dialog */}
